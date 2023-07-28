@@ -66,11 +66,12 @@ def get_graph():
         """),
         database_=database,
         routing_="r",
-        limit=request.args.get("limit", 100)
+        limit=request.args.get("limit", 2)
     )
     nodes = []
     rels = []
     i = 0
+
     for record in records:
         nodes.append({"title": record["movie"], "label": "movie"})
         target = i
@@ -83,7 +84,8 @@ def get_graph():
                 nodes.append(actor)
                 source = i
                 i += 1
-            rels.append({"source": source, "target": target})
+            # rels.append({"source": source, "target": target})
+    print(dumps({"nodes": nodes, "links": rels}) )
     return Response(dumps({"nodes": nodes, "links": rels}),
                     mimetype="application/json")
 

@@ -136,47 +136,55 @@
     })
 </script>
 
-<script type="text/javascript">
-    const width = 800, height = 800;
+    <script type="text/javascript">
+        const width = 800, height = 1200;
 
-    const force = d3.layout.force()
-            .charge(-200).linkDistance(30).size([width, height]);
+        const force = d3.layout.force()
+            .charge(-500).linkDistance(200).size([width, height]);
 
-    const svg = d3.select("#graph").append("svg")
+        const svg = d3.select("#graph").append("svg")
             .attr("width", "100%").attr("height", "100%")
             .attr("pointer-events", "all");
 
-    d3.json("/graph", function(error, graph) {
-		if (error) return;
+        d3.json("/graph", function (error, graph) {
+            if (error) return;
 
-        force.nodes(graph.nodes).links(graph.links).start();
+            force.nodes(graph.nodes).links(graph.links).start();
 
-        const link = svg.selectAll(".link")
+            const link = svg.selectAll(".link")
                 .data(graph.links).enter()
                 .append("line").attr("class", "link");
 
-        const node = svg.selectAll(".node")
+            // Update the node selection to include a group (g) for each node
+            const node = svg.selectAll(".node")
                 .data(graph.nodes).enter()
-                .append("circle")
-                .attr("class", function (d) { return "node "+d.label })
-                .attr("r", 10)
+                .append("g")
+                .attr("class", function (d) { return "node " + d.label })
                 .call(force.drag);
 
-        // html title attribute
-        node.append("title")
-                .text(function (d) { return d.title; })
+            // Append a circle inside the group for each node
+            node.append("circle")
+                .attr("r", 30);
 
-        // force feed algo ticks
-        force.on("tick", function() {
-            link.attr("x1", function(d) { return d.source.x; })
-                    .attr("y1", function(d) { return d.source.y; })
-                    .attr("x2", function(d) { return d.target.x; })
-                    .attr("y2", function(d) { return d.target.y; });
+            // Append a text element inside the group for each node
+            node.append("text")
+                .attr("text-anchor", "middle") // Center the text inside the circle
+                .attr("dy", ".35em") // Adjust the vertical alignment of the text
+                .text(function (d) { return d.title; });
 
-            node.attr("cx", function(d) { return d.x; })
-                    .attr("cy", function(d) { return d.y; });
+            // force feed algo ticks
+            force.on("tick", function () {
+                link.attr("x1", function (d) { return d.source.x; })
+                    .attr("y1", function (d) { return d.source.y; })
+                    .attr("x2", function (d) { return d.target.x; })
+                    .attr("y2", function (d) { return d.target.y; });
+
+                // Update the position of the group (circle + text)
+                node.attr("transform", function (d) {
+                    return "translate(" + d.x + "," + d.y + ")";
+                });
+            });
         });
-    });
-</script>
+    </script>
 </body>
 </html>
