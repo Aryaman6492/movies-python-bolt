@@ -143,11 +143,11 @@
     })
 </script>
 
-    <script type="text/javascript">
+<script type="text/javascript">
         const width = 1200, height = 1200;
 
         const force = d3.layout.force()
-            .charge(-500).linkDistance(200).size([width, height]);
+            .charge(-500).linkDistance(400).size([width, height]);
 
         const svg = d3.select("#graph").append("svg")
             .attr("width", "100%").attr("height", "100%")
@@ -160,7 +160,18 @@
 
             const link = svg.selectAll(".link")
                 .data(graph.links).enter()
-                .append("line").attr("class", "link");
+                .append("g") // Use a group element to contain the link line and text
+                .attr("class", "link");
+
+            // Append a line inside the group for each link
+            link.append("line")
+                .attr("class", "link-line");
+
+            // Append a text element inside the group for each link
+            link.append("text")
+                .attr("class", "link-text")
+                .attr("text-anchor", "middle")
+                .text(function (d) { return d.relation; });
 
             // Update the node selection to include a group (g) for each node
             const node = svg.selectAll(".node")
@@ -175,18 +186,22 @@
 
             // Append a text element inside the group for each node
             node.append("text")
-                .attr("text-anchor", "middle") // Center the text inside the circle
-                .attr("dy", ".35em") // Adjust the vertical alignment of the text
+                .attr("text-anchor", "middle")
+                .attr("dy", ".35em")
                 .text(function (d) { return d.id; });
 
             // force feed algo ticks
             force.on("tick", function () {
-                link.attr("x1", function (d) { return d.source.x; })
+                link.select(".link-line")
+                    .attr("x1", function (d) { return d.source.x; })
                     .attr("y1", function (d) { return d.source.y; })
                     .attr("x2", function (d) { return d.target.x; })
                     .attr("y2", function (d) { return d.target.y; });
 
-                // Update the position of the group (circle + text)
+                link.select(".link-text")
+                    .attr("x", function (d) { return (d.source.x + d.target.x) / 2; })
+                    .attr("y", function (d) { return (d.source.y + d.target.y) / 2; });
+
                 node.attr("transform", function (d) {
                     return "translate(" + d.x + "," + d.y + ")";
                 });
