@@ -4,7 +4,7 @@ import os
 from json import dumps
 from textwrap import dedent
 from typing import cast
-
+from pprint import pprint
 import neo4j
 from flask import Flask, Response, request
 from neo4j import GraphDatabase, basic_auth
@@ -12,15 +12,15 @@ from typing_extensions import LiteralString
 
 app = Flask(__name__, static_url_path="/static/")
 
-url = os.getenv("NEO4J_URI", "neo4j+s://demo.neo4jlabs.com")
+url = 'neo4j://localhost:7687' or os.getenv("NEO4J_URI", "neo4j+s://demo.neo4jlabs.com") 
 username = os.getenv("NEO4J_USER", "movies")
 password = os.getenv("NEO4J_PASSWORD", "movies")
 neo4j_version = os.getenv("NEO4J_VERSION", "4")
-database = os.getenv("NEO4J_DATABASE", "movies")
+database = os.getenv("NEO4J_DATABASE", "neo4j") # movies
 
 port = int(os.getenv("PORT", 8080))
 
-driver = GraphDatabase.driver(url, auth=basic_auth(username, password))
+driver = GraphDatabase.driver(url, auth= None ) # basic_auth(username, password))
 
 
 def query(q: LiteralString) -> LiteralString:
@@ -55,39 +55,112 @@ def serialize_cast(cast):
         "role": cast[2]
     }
 
+def abslist(s):
+        if type(s) == list:
+            return s
+        return [s]
+
+def resolve_resource_id(node):
+    if node.get('name') and not node['name'].startswith('arn:'):
+        return 'name'
+    for k in node.keys():
+        if k.endswith('name') and node[k] and not node[k].startswith('arn:'):
+            return k
+    if 'id' in node:
+        return 'id'
+    for k in node.keys():
+        if k.endswith('id'):
+            return k
+
+    if 'arn' in node:
+        return 'arn'
 
 @app.route("/graph")
-def get_graph():
+def get_carto():
     records, _, _ = driver.execute_query(
-        query("""
-            MATCH (m:Movie)<-[:ACTED_IN]-(a:Person)
-            RETURN m.title AS movie, collect(a.name) AS cast
-            LIMIT $limit
-        """),
+        query('MATCH (n:KeyPair {keyname: "shreyansh"})-[r*]->(x) RETURN n,r,x'),
+        # query('MATCH (n)-[r]->(x) RETURN n,r,x'),
         database_=database,
-        routing_="r",
-        limit=request.args.get("limit", 2)
+        # routing_="r",
+        # limit=request.args.get("limit", 2)
     )
     nodes = []
     rels = []
+    walks = []
     i = 0
-
+    # pprint(records)
     for record in records:
-        nodes.append({"title": record["movie"], "label": "movie"})
-        target = i
-        i += 1
-        for name in record["cast"]:
-            actor = {"title": name, "label": "actor"}
+        n = {k:v for k,v in record['n'].items()}
+        n['id'] = n[resolve_resource_id(n)]
+        n['labels'] = list(record['n'].labels)
+        if n not in nodes:
+            nodes.append(n)
+        for r in abslist(record['r']):
             try:
-                source = nodes.index(actor)
-            except ValueError:
-                nodes.append(actor)
-                source = i
-                i += 1
-            # rels.append({"source": source, "target": target})
+                if r.element_id in walks:
+                    continue
+                else:
+                    walks.append(r.element_id)
+            except Exception as e:
+                print(e, record, r)
+                exit()
+            _a, _b = r.nodes
+            print(r.type, _a[resolve_resource_id(_a)],_b[resolve_resource_id(_b)])
+            a = {k:v for k,v in _a.items()}
+            a['id'] = a[resolve_resource_id(_a)]
+            a['labels'] = list(_a.labels)
+            b = {k:v for k,v in _b.items()}
+            b['id'] = b[resolve_resource_id(_b)]
+            b['labels'] = list(_b.labels)
+
+            if a not in nodes:
+                nodes.append(a)
+            if b not in nodes:
+                nodes.append(b)
+            rels.append({"source": nodes.index(a), "relation": r.type, "target": nodes.index(b)})
+        # pprint(nodes)
+        print('=============================')
+        # key = {k:v for k,v in record['keys'].items()}
+        # key['labels'] = list(record['keys'].labels)
+        # nodes.append(key)
+        # target = i
+        # i += 1
     print(dumps({"nodes": nodes, "links": rels}) )
     return Response(dumps({"nodes": nodes, "links": rels}),
                     mimetype="application/json")
+
+
+# def get_graph():
+#     records, _, _ = driver.execute_query(
+#         query("""
+#         MATCH (m:Movie)<-[:ACTED_IN]-(a:Person)
+#         RETURN m.title AS movie, collect(a.name) AS cast
+#         LIMIT $limit
+#         """),
+#         database_=database,
+#         routing_="r",
+#         limit=request.args.get("limit", 2)
+#     )
+#     nodes = []
+#     rels = []
+#     i = 0
+#     print(records)
+#     for record in records:
+#         nodes.append({"title": record["movie"], "label": "movie"})
+#         target = i
+#         i += 1
+#         for name in record["cast"]:
+#             actor = {"title": name, "label": "actor"}
+#             try:
+#                 source = nodes.index(actor)
+#             except ValueError:
+#                 nodes.append(actor)
+#                 source = i
+#                 i += 1
+#             rels.append({"source": source, "target": target})
+#     print(dumps({"nodes": nodes, "links": rels}) )
+#     return Response(dumps({"nodes": nodes, "links": rels}),
+#                     mimetype="application/json")
 
 
 @app.route("/search")

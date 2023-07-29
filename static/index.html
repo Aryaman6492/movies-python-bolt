@@ -76,8 +76,15 @@
 </div>
 <style type="text/css">
     .node { stroke: #222; stroke-width: 1.5px; }
+    .node {fill : #778da9}
     .node.actor { fill: #888; }
-    .node.movie { fill: #BBB; }
+    .node.EC2KeyPair { fill:  #5da1c7 ; }
+    .node.EC2Instance {  fill: #ea0408; }
+    .node.NetworkInterface {  fill: #c8238b; }
+    .node.EC2SecurityGroup {  fill: #f2fd69; }
+    .node.EC2Subnet {  fill: #20c997; }
+    .node.EC2Reservation { fill: #fadf9d }
+    .node.EBSVolume {fill: #70c20c}
     .link { stroke: #999; stroke-opacity: .6; stroke-width: 1px; }
 </style>
 
@@ -137,7 +144,7 @@
 </script>
 
     <script type="text/javascript">
-        const width = 800, height = 1200;
+        const width = 1200, height = 1200;
 
         const force = d3.layout.force()
             .charge(-500).linkDistance(200).size([width, height]);
@@ -159,7 +166,7 @@
             const node = svg.selectAll(".node")
                 .data(graph.nodes).enter()
                 .append("g")
-                .attr("class", function (d) { return "node " + d.label })
+                .attr("class", function (d) { return "node " + d.labels[0] })
                 .call(force.drag);
 
             // Append a circle inside the group for each node
@@ -170,7 +177,7 @@
             node.append("text")
                 .attr("text-anchor", "middle") // Center the text inside the circle
                 .attr("dy", ".35em") // Adjust the vertical alignment of the text
-                .text(function (d) { return d.title; });
+                .text(function (d) { return d.id; });
 
             // force feed algo ticks
             force.on("tick", function () {
